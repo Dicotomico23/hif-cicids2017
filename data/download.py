@@ -100,6 +100,11 @@ def _from_kagglehub():
                              os.path.join(TARGET_DIR, name))
 
 
+def _kaggle_allowed():
+    """Kaggle is an opt-in emergency fallback, never used automatically."""
+    return bool(os.environ.get("ALLOW_KAGGLE")) or ("--kaggle" in sys.argv)
+
+
 def main():
     if _already_present():
         print("Dataset already present in %s" % TARGET_DIR)
@@ -118,14 +123,25 @@ def main():
         except Exception as exc:  # noqa: BLE001
             print("  failed: %s" % exc)
 
-    print("Archive sources unavailable; trying Kaggle ...")
+    if not sources:
+        print("No archive URLs configured (set ZENODO_URL / RELEASE_URL).")
+
+    if not _kaggle_allowed():
+        raise SystemExit(
+            "Dataset not available from the archive. Either configure "
+            "ZENODO_URL / RELEASE_URL in data/download.py, or, as an emergency, "
+            "re-run with the Kaggle fallback enabled: "
+            "ALLOW_KAGGLE=1 python data/download.py"
+        )
+
+    print("Emergency fallback: trying Kaggle ...")
     try:
         _from_kagglehub()
         print("Done.")
     except Exception as exc:  # noqa: BLE001
         raise SystemExit(
-            "Could not obtain the dataset. Set ZENODO_URL/RELEASE_URL in this "
-            "file, or configure Kaggle credentials. Details: %s" % exc
+            "Kaggle fallback failed. Configure Kaggle credentials "
+            "(upload kaggle.json) or set the archive URLs. Details: %s" % exc
         )
 
 
