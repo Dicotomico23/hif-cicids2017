@@ -43,7 +43,7 @@ def _svm(trial):
         C=trial.suggest_float("C", 1e-2, 1e2, log=True),
         max_iter=2000, random_state=RANDOM_STATE,
     )
-    return CalibratedClassifierCV(base)
+    return CalibratedClassifierCV(base, n_jobs=-1)
 
 
 _FACTORIES = {"RF": _rf, "NN": _mlp, "SVM": _svm}
@@ -58,11 +58,20 @@ SEARCH_SPACES = {
 }
 
 
-def tune_supervised(name, X_train, y_train, X_val, y_val, n_trials=20, seed=RANDOM_STATE):
+def tune_supervised(name, X_train, y_train, X_val, y_val, n_trials=20,
+                    seed=RANDOM_STATE, trial_jobs=1):
     """Tune one supervised baseline with Optuna; return (fitted_model, best_params).
 
     The objective is the validation F1-score. The returned model is refitted on
     the training set with the best hyperparameters.
+
+    The whole pipeline is CPU-only (no GPU benefit). RF parallelizes internally
+    and the SVM parallelizes its calibration folds, so their trials are best run
+    one at a time. MLP has no inner parallelism, so on a multi-core CPU you can
+    speed it up by running its Optuna trials concurrently via ``trial_jobs``.
+    Note: ``trial_jobs > 1`` makes the TPE search non-deterministic (concurrent
+    trials cannot see each other's results), so the default is 1 for exact
+    reproducibility.
     """
     import optuna
 
@@ -77,7 +86,8 @@ def tune_supervised(name, X_train, y_train, X_val, y_val, n_trials=20, seed=RAND
     study = optuna.create_study(
         direction="maximize", sampler=optuna.samplers.TPESampler(seed=seed)
     )
-    study.optimize(objective, n_trials=n_trials, show_progress_bar=False)
+    study.optimize(objective, n_trials=n_trials, n_jobs=trial_jobs,
+                   show_progress_bar=False)
 
     best_model = factory(study.best_trial)  # FrozenTrial replays stored params
     best_model.fit(X_train, y_train)

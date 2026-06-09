@@ -82,6 +82,10 @@ def main():
                         help="tune the supervised baselines with Optuna")
     parser.add_argument("--n_trials", type=int, default=20,
                         help="Optuna trials per baseline when --optimize is set")
+    parser.add_argument("--parallel_trials", type=int, default=1,
+                        help="concurrent Optuna trials for the MLP (CPU-only; "
+                             ">1 speeds up NN tuning but makes TPE "
+                             "non-deterministic). RF/SVM ignore this.")
     args = parser.parse_args()
 
     np.random.seed(args.seed)
@@ -146,8 +150,12 @@ def main():
         t0 = time.time()
         if args.optimize:
             from hif.optimize import tune_supervised
+            # Only the MLP benefits from concurrent trials; RF/SVM already use
+            # all cores within a single trial, so keep their trials serial.
+            trial_jobs = args.parallel_trials if name == "NN" else 1
             clf, best_params = tune_supervised(
-                name, X_train_bal, y_train_bal, X_val, y_val, n_trials=args.n_trials)
+                name, X_train_bal, y_train_bal, X_val, y_val,
+                n_trials=args.n_trials, trial_jobs=trial_jobs)
             print("    best params: %s" % best_params)
         else:
             clf = default_baselines[name]

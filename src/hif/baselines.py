@@ -27,6 +27,6 @@ def build_baselines():
         early_stopping=True,
     )
     svm = CalibratedClassifierCV(
-        LinearSVC(random_state=RANDOM_STATE, max_iter=2000)
+        LinearSVC(random_state=RANDOM_STATE, max_iter=2000), n_jobs=-1
     )
     return {"RF": rf, "NN": mlp, "SVM": svm}
