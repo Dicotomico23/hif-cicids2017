@@ -5,6 +5,7 @@
 data/*
 !data/README.md
 !data/download.py
+!data/clean_dataset.py
 !data/sample
 !data/sample/cicids2017_sample.csv
 
