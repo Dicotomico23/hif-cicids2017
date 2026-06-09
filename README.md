@@ -1,5 +1,7 @@
 # Hybrid Isolation Forest on CICIDS2017
 
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Dicotomico23/hif-cicids2017/blob/main/notebooks/colab_run.ipynb)
+
 Reproducible comparison of a Hybrid Isolation Forest (HIF) against supervised
 baselines (Random Forest, Multi-Layer Perceptron, Support Vector Machine) and
 an unsupervised baseline (Local Outlier Factor) for network anomaly detection
@@ -9,21 +11,28 @@ The task is binary: benign traffic versus anomalous (any attack) traffic. HIF
 is tuned for a high-precision operating point; the baselines provide a balanced
 reference. This is the companion code for the accompanying paper.
 
-## Quick start
+## Run on Colab (recommended)
+
+The full pipeline is heavy for a laptop. Click the badge above, or open
+`notebooks/colab_run.ipynb` in Google Colab, to clone the repo, install the
+dependencies, download the dataset and run the study on Colab hardware. Use a
+High-RAM runtime; a GPU is not needed.
+
+## Quick start (local)
 
 ```
-git clone https://github.com/Dicotomico23/HIF_NetworkAnomalyDetection.git
-cd HIF_NetworkAnomalyDetection
+git clone https://github.com/Dicotomico23/hif-cicids2017.git
+cd hif-cicids2017
 pip install -r requirements.txt
 pip install -e .
 
 python tests/test_smoke.py          # fast check, no dataset needed
-python reproduce/run_comparison.py  # full study (downloads CICIDS2017)
+python data/download.py             # fetch the archived dataset
+python reproduce/run_comparison.py  # full study
 ```
 
-The full run downloads CICIDS2017 through kagglehub (Kaggle credentials
-required; see `data/README.md`) and writes the results table and figures to
-`results/`. A quick partial run on a subsample:
+`data/download.py` retrieves the dataset and writes the results table and
+figures to `results/`. A quick partial run on a subsample:
 
 ```
 python reproduce/run_comparison.py --nrows 50000

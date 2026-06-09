@@ -11,7 +11,7 @@ authors:
     given-names: "Juan C."
 version: "1.0.0"
 license: MIT
-repository-code: "https://github.com/Dicotomico23/HIF_NetworkAnomalyDetection"
+repository-code: "https://github.com/Dicotomico23/hif-cicids2017"
 abstract: >
   Reproducible comparison of a Hybrid Isolation Forest (HIF) semi-supervised
   ensemble against supervised baselines (Random Forest, Multi-Layer Perceptron,
