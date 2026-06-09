@@ -10,7 +10,7 @@ import time
 
 import numpy as np
 
-from .config import ENSEMBLE_CONFIGS, PRECISION_WEIGHT
+from .config import ENSEMBLE_CONFIGS, PRECISION_WEIGHT, vprint
 from .forest import HybridIsolationForest, fbeta_threshold
 
 
@@ -24,12 +24,12 @@ class HIFEnsemble:
 
     def fit(self, X_normal, X_anomalies=None, y_anomalies=None, verbose=True):
         if verbose:
-            print("  Training %d HIF members ..." % len(self.members))
+            vprint("  Training %d HIF members ..." % len(self.members))
         for i, hif in enumerate(self.members):
             t0 = time.time()
             hif.fit(X_normal, X_anomalies, y_anomalies)
             if verbose:
-                print("    Member %d done in %.1fs" % (i + 1, time.time() - t0))
+                vprint("    Member %d done in %.1fs" % (i + 1, time.time() - t0))
         return self
 
     def score_samples(self, X):

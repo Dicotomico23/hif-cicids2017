@@ -18,6 +18,10 @@ dist/
 # Generated results (keep the directory and figures placeholder if you wish).
 results/*.csv
 results/*.json
+# Phase checkpoints (can be large, e.g. the preprocessed prep.npz). Never commit.
+results/checkpoints/
+checkpoints/
+ckpt*/
 
 # Python
 __pycache__/

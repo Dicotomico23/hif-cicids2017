@@ -23,10 +23,9 @@ hits Python's recursion limit on deep trees built from large subsamples.
 import math
 
 import numpy as np
-from joblib import Parallel, delayed
 from sklearn.metrics import precision_score, recall_score
 
-from .config import RANDOM_STATE
+from .config import ANOMALY_CENTROID_SAMPLE, RANDOM_STATE
 
 
 class exNode:
@@ -100,44 +99,45 @@ def _build_tree(S, lmax, rng):
     return root
 
 
-def _score_sample(x, tree):
-    """Traverse one tree and return (h_x, delta_x, has_c, delta_ax, has_a).
-
-    has_c / has_a flag whether the leaf has a normal / anomaly centroid, so the
-    cross-tree averages can skip leaves that have none (as in Marteau's HIF)
-    instead of averaging in spurious zeros.
-    """
-    e = 0
-    node = tree
-    while not isinstance(node, exNode):
-        if x[node.splitDim] < node.splitVal:
-            node = node.left
-        else:
-            node = node.right
-        e += 1
-
-    h_x = e + node.c_lenS
-    if node.CS is not None:
-        delta_x, has_c = float(np.linalg.norm(x - node.CS)), 1.0
-    else:
-        delta_x, has_c = 0.0, 0.0
-    if node.Ca is not None:
-        delta_ax, has_a = float(np.linalg.norm(x - node.Ca)), 1.0
-    else:
-        delta_ax, has_a = 0.0, 0.0
-    return h_x, delta_x, has_c, delta_ax, has_a
-
-
 def _score_one_tree(tree, X):
-    """Score every sample against a single tree (used by joblib workers)."""
+    """Score every sample against a single tree, returning per-sample arrays
+    (h, delta_x, has_c, delta_ax, has_a).
+
+    The traversal is vectorised: instead of walking the tree once per sample
+    (Python-slow on hundreds of thousands of rows), it carries the whole set of
+    sample indices down the tree, splitting them with a boolean mask at each
+    internal node. The work per tree is then proportional to the number of tree
+    nodes, not to n_samples x depth in Python.
+
+    has_c / has_a flag whether the reached leaf has a normal / anomaly centroid,
+    so the cross-tree averages can skip leaves that have none (as in Marteau's
+    HIF) instead of averaging in spurious zeros.
+    """
     n = len(X)
     h = np.zeros(n)
     dx = np.zeros(n)
     cx = np.zeros(n)
     da = np.zeros(n)
     ca = np.zeros(n)
-    for i in range(n):
-        h[i], dx[i], cx[i], da[i], ca[i] = _score_sample(X[i], tree)
+
+    # Stack of (node, indices into X reaching this node, edges traversed so far).
+    stack = [(tree, np.arange(n), 0)]
+    while stack:
+        node, idx, depth = stack.pop()
+        if idx.size == 0:
+            continue
+        if isinstance(node, exNode):
+            h[idx] = depth + node.c_lenS
+            if node.CS is not None:
+                dx[idx] = np.linalg.norm(X[idx] - node.CS, axis=1)
+                cx[idx] = 1.0
+            if node.Ca is not None:
+                da[idx] = np.linalg.norm(X[idx] - node.Ca, axis=1)
+                ca[idx] = 1.0
+        else:
+            go_left = X[idx, node.splitDim] < node.splitVal
+            stack.append((node.left, idx[go_left], depth + 1))
+            stack.append((node.right, idx[~go_left], depth + 1))
     return h, dx, cx, da, ca
 
 
@@ -159,6 +159,7 @@ def _compute_Ca(tree):
         node = stack.pop()
         if isinstance(node, exNode):
             node.Ca = np.mean(node.Xa, axis=0) if node.Xa else None
+            node.Xa = None  # free the routed vectors; only the centroid is kept
         else:
             stack.append(node.left)
             stack.append(node.right)
@@ -189,8 +190,15 @@ class HybridIsolationForest:
         # "normalize per input batch" (used before calibration).
         self._norm = None
 
-    def fit(self, X_normal, X_anomalies=None, y_anomalies=None):
-        """Train on benign data, then route labelled anomalies into the trees."""
+    def fit(self, X_normal, X_anomalies=None, y_anomalies=None,
+            max_anomalies=ANOMALY_CENTROID_SAMPLE):
+        """Train on benign data, then route labelled anomalies into the trees.
+
+        max_anomalies caps how many anomaly vectors are routed to build the
+        per-leaf centroids; see config.ANOMALY_CENTROID_SAMPLE. Routing the full
+        (SMOTE-balanced) anomaly set through every tree is the dominant cost and
+        a memory hazard, so it is subsampled by default.
+        """
         n = X_normal.shape[0]
         if self.psi > n:
             raise ValueError(
@@ -206,11 +214,16 @@ class HybridIsolationForest:
             return _build_tree(X_normal[idx], self.lmax, local_rng)
 
         seeds = rng.integers(0, 2 ** 31, size=self.t)
-        self.forest = Parallel(n_jobs=-1)(
-            delayed(_build_one)(int(s)) for s in seeds
-        )
+        # Built serially: each tree uses only psi <= 512 samples, so building is
+        # fast, and avoiding a process pool sidesteps loky's semaphore leaks and
+        # pickling overhead (which dominated on small per-tree workloads).
+        self.forest = [_build_one(int(s)) for s in seeds]
 
         if X_anomalies is not None and len(X_anomalies) > 0:
+            if max_anomalies is not None and len(X_anomalies) > max_anomalies:
+                sub_rng = np.random.default_rng(RANDOM_STATE)
+                sel = sub_rng.choice(len(X_anomalies), max_anomalies, replace=False)
+                X_anomalies = X_anomalies[sel]
             for tree in self.forest:
                 for x in X_anomalies:
                     _route_anomaly(x, tree)
@@ -227,9 +240,7 @@ class HybridIsolationForest:
         whose leaf actually has that centroid, matching Marteau's HIF; this
         avoids biasing da toward zero for leaves with no routed anomalies.
         """
-        results = Parallel(n_jobs=-1)(
-            delayed(_score_one_tree)(tree, X) for tree in self.forest
-        )
+        results = [_score_one_tree(tree, X) for tree in self.forest]
         h = np.mean([r[0] for r in results], axis=0)
         dx_sum = np.sum([r[1] for r in results], axis=0)
         cx_cnt = np.sum([r[2] for r in results], axis=0)

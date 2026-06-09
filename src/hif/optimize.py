@@ -12,6 +12,7 @@ from sklearn.metrics import f1_score
 from sklearn.neural_network import MLPClassifier
 from sklearn.svm import LinearSVC
 
+from . import config
 from .config import RANDOM_STATE
 
 # Hidden-layer presets for the MLP (Optuna categoricals must be simple values).
@@ -75,7 +76,9 @@ def tune_supervised(name, X_train, y_train, X_val, y_val, n_trials=20,
     """
     import optuna
 
-    optuna.logging.set_verbosity(optuna.logging.WARNING)
+    verbose = config.VERBOSITY >= 2
+    optuna.logging.set_verbosity(
+        optuna.logging.INFO if verbose else optuna.logging.WARNING)
     factory = _FACTORIES[name]
 
     def objective(trial):
@@ -87,7 +90,7 @@ def tune_supervised(name, X_train, y_train, X_val, y_val, n_trials=20,
         direction="maximize", sampler=optuna.samplers.TPESampler(seed=seed)
     )
     study.optimize(objective, n_trials=n_trials, n_jobs=trial_jobs,
-                   show_progress_bar=False)
+                   show_progress_bar=verbose)
 
     best_model = factory(study.best_trial)  # FrozenTrial replays stored params
     best_model.fit(X_train, y_train)

@@ -39,3 +39,32 @@ ENSEMBLE_CONFIGS = [
 # Threshold selection objective. The operating point favours precision over
 # recall by maximising an F-beta score with beta derived from this weight.
 PRECISION_WEIGHT = 0.9
+
+# HIF semi-supervised step: cap on how many labelled anomalies are routed into
+# each tree to build the per-leaf anomaly centroids. Routing the full
+# SMOTE-balanced anomaly set (hundreds of thousands of rows) through every tree
+# is the dominant training cost and a serious memory hazard (each routed vector
+# is stored at a leaf in every tree). A representative random subsample yields
+# essentially the same centroids at a fraction of the time and memory. Set to
+# None to route every anomaly (not recommended on large datasets).
+ANOMALY_CENTROID_SAMPLE = 5000
+
+# Console verbosity for the pipeline scripts:
+#   0 = quiet   (results table only),
+#   1 = default (announce every pipeline step; the historical behaviour),
+#   2 = verbose (everything in 1 plus environment/config dump, per-feature
+#       mutual-information scores, library warnings and Optuna trial logs).
+# Set at runtime with run_comparison.py --verbose; do not edit here.
+VERBOSITY = 1
+
+
+def set_verbosity(level):
+    """Set the global console verbosity (0, 1 or 2)."""
+    global VERBOSITY
+    VERBOSITY = int(level)
+
+
+def vprint(msg="", level=1):
+    """Print ``msg`` only when the current VERBOSITY is at least ``level``."""
+    if VERBOSITY >= level:
+        print(msg)

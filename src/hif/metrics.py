@@ -16,6 +16,8 @@ from sklearn.metrics import (
     roc_auc_score,
 )
 
+from .config import vprint
+
 # Metrics shown on the radar chart.
 RADAR_METRICS = ["Accuracy", "F1", "Precision", "Recall", "ROC_AUC"]
 
@@ -35,13 +37,13 @@ def evaluate(y_true, y_pred, y_score=None, label=""):
     else:
         auc = float("nan")
 
-    print("  %s" % label)
-    print("    Accuracy      : %.4f" % acc)
-    print("    Balanced acc  : %.4f" % bal)
-    print("    F1            : %.4f" % f1)
-    print("    Precision     : %.4f" % prec)
-    print("    Recall        : %.4f" % rec)
-    print("    ROC AUC       : %.4f" % auc)
+    vprint("  %s" % label)
+    vprint("    Accuracy      : %.4f" % acc)
+    vprint("    Balanced acc  : %.4f" % bal)
+    vprint("    F1            : %.4f" % f1)
+    vprint("    Precision     : %.4f" % prec)
+    vprint("    Recall        : %.4f" % rec)
+    vprint("    ROC AUC       : %.4f" % auc)
     return {
         "Model": label, "Accuracy": acc, "Balanced_Acc": bal, "F1": f1,
         "Precision": prec, "Recall": rec, "ROC_AUC": auc,

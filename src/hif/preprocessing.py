@@ -34,6 +34,7 @@ from .config import (
     TEST_SIZE,
     TOP_K_FEATURES,
     VAL_SIZE,
+    vprint,
 )
 
 
@@ -72,13 +73,13 @@ def load_dataset(nrows=None, dataset=KAGGLE_DATASET, path=None):
     """
     if path is not None:
         src = path
-        print("Using dataset path: %s" % src)
+        vprint("Using dataset path: %s" % src)
     elif _cleaned_file() is not None:
         src = _cleaned_file()
-        print("Using cleaned dataset: %s" % src)
+        vprint("Using cleaned dataset: %s" % src)
     elif _local_data_dir() is not None:
         src = _local_data_dir()
-        print("Using archived dataset: %s" % src)
+        vprint("Using archived dataset: %s" % src)
     else:
         import kagglehub
 
@@ -89,10 +90,10 @@ def load_dataset(nrows=None, dataset=KAGGLE_DATASET, path=None):
         print("first to fetch the canonical cleaned dataset from the Release.")
         print("!" * 70 + "\n")
         src = kagglehub.dataset_download(dataset)
-        print("Dataset path (kagglehub): %s" % src)
+        vprint("Dataset path (kagglehub): %s" % src)
 
     if os.path.isfile(src):
-        print("  Loading %s" % src)
+        vprint("  Loading %s" % src)
         df = pd.read_csv(src, low_memory=False)
     else:
         frames = []
@@ -100,12 +101,12 @@ def load_dataset(nrows=None, dataset=KAGGLE_DATASET, path=None):
             for name in files:
                 if name.endswith(".csv"):
                     fp = os.path.join(root, name)
-                    print("  Loading %s" % fp)
+                    vprint("  Loading %s" % fp)
                     frames.append(pd.read_csv(fp, low_memory=False))
         df = pd.concat(frames, ignore_index=True)
     if nrows is not None and nrows < len(df):
         df = df.sample(n=nrows, random_state=RANDOM_STATE).reset_index(drop=True)
-    print("Raw shape: %s" % str(df.shape))
+    vprint("Raw shape: %s" % str(df.shape))
     return df
 
 
@@ -149,9 +150,10 @@ def clean(df):
 
     counts = df[LABEL_COL].value_counts()
     total = len(df)
-    print("Shape after cleaning: %s (label column: %s)" % (str(df.shape), src_label))
-    print("  BENIGN : %8d  (%.1f%%)" % (counts.get(0, 0), counts.get(0, 0) / total * 100))
-    print("  ATTACK : %8d  (%.1f%%)" % (counts.get(1, 0), counts.get(1, 0) / total * 100))
+    vprint("Shape after cleaning: %s (label column: %s)" % (str(df.shape), src_label))
+    vprint("  BENIGN : %8d  (%.1f%%)" % (counts.get(0, 0), counts.get(0, 0) / total * 100))
+    vprint("  ATTACK : %8d  (%.1f%%)" % (counts.get(1, 0), counts.get(1, 0) / total * 100))
+    vprint("  Numeric feature columns: %d" % len(numeric_cols), level=2)
     return df, numeric_cols
 
 
@@ -167,8 +169,8 @@ def stratified_sample(df, fraction, label_col=LABEL_COL, seed=RANDOM_STATE):
         df, test_size=fraction, stratify=df[label_col], random_state=seed
     )
     counts = sample[label_col].value_counts()
-    print("Stratified subsample: %.1f%% -> %d rows (BENIGN %d, ATTACK %d)"
-          % (fraction * 100, len(sample), counts.get(0, 0), counts.get(1, 0)))
+    vprint("Stratified subsample: %.1f%% -> %d rows (BENIGN %d, ATTACK %d)"
+           % (fraction * 100, len(sample), counts.get(0, 0), counts.get(1, 0)))
     return sample.reset_index(drop=True)
 
 
@@ -186,9 +188,9 @@ def split(df, numeric_cols):
         test_size=VAL_SIZE / (1.0 - TEST_SIZE),
         random_state=RANDOM_STATE, stratify=y_tmp,
     )
-    print("  Train : %8d rows" % X_train.shape[0])
-    print("  Val   : %8d rows" % X_val.shape[0])
-    print("  Test  : %8d rows" % X_test.shape[0])
+    vprint("  Train : %8d rows" % X_train.shape[0])
+    vprint("  Val   : %8d rows" % X_val.shape[0])
+    vprint("  Test  : %8d rows" % X_test.shape[0])
     return X_train, X_val, X_test, y_train, y_val, y_test
 
 
@@ -206,10 +208,12 @@ def select_features(X_train, y_train, numeric_cols, k=TOP_K_FEATURES):
         pd.DataFrame({"Feature": numeric_cols, "MI": mi})
         .sort_values("MI", ascending=False)
     )
-    top = ranking.head(k)["Feature"].tolist()
-    print("Top %d features by mutual information:" % k)
-    for i, feat in enumerate(top, 1):
-        print("  %2d. %s" % (i, feat.strip()))
+    top_df = ranking.head(k)
+    top = top_df["Feature"].tolist()
+    vprint("Top %d features by mutual information:" % k)
+    for i, (feat, mi_score) in enumerate(zip(top, top_df["MI"].tolist()), 1):
+        vprint("  %2d. %s" % (i, feat.strip()))
+        vprint("        MI = %.5f" % mi_score, level=2)
 
     col_idx = [numeric_cols.index(feat) for feat in top]
     return col_idx, top
@@ -226,8 +230,8 @@ def scale(X_train, X_val, X_test):
 
 def balance(X_train, y_train):
     """Oversample the minority (attack) class with Borderline-SMOTE."""
-    print("  Before SMOTE: %s" % str(np.bincount(y_train)))
+    vprint("  Before SMOTE: %s" % str(np.bincount(y_train)))
     smote = BorderlineSMOTE(random_state=RANDOM_STATE)
     X_bal, y_bal = smote.fit_resample(X_train, y_train)
-    print("  After  SMOTE: %s" % str(np.bincount(y_bal)))
+    vprint("  After  SMOTE: %s" % str(np.bincount(y_bal)))
     return X_bal, y_bal
