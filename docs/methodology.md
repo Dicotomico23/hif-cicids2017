@@ -100,8 +100,12 @@ the test set.
   not generalise inductively, so its ROC AUC on held-out data is close to
   chance. This is a property of the method and is reported as such.
 
-All hyperparameters are fixed and documented in `src/hif/`. No automated
-hyperparameter search is performed.
+The supervised baselines (RF, NN, SVM) are tuned with Optuna when the pipeline
+is run with `--optimize`: each trial fits a candidate on the balanced training
+set and is scored by validation F1 (the test set is never used for tuning). The
+search spaces are defined in `src/hif/optimize.py`. Without `--optimize`, the
+baselines use the fixed defaults in `src/hif/baselines.py`. LOF and the HIF
+ensemble are not tuned (fixed configurations).
 
 ## Metrics
 

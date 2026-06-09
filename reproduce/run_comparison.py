@@ -72,6 +72,10 @@ def main():
     parser.add_argument("--seed", type=int, default=RANDOM_STATE, help="random seed")
     parser.add_argument("--nrows", type=int, default=None,
                         help="random subsample size for a quick partial run")
+    parser.add_argument("--optimize", action="store_true",
+                        help="tune the supervised baselines with Optuna")
+    parser.add_argument("--n_trials", type=int, default=20,
+                        help="Optuna trials per baseline when --optimize is set")
     args = parser.parse_args()
 
     np.random.seed(args.seed)
@@ -126,11 +130,20 @@ def main():
     row["Eval_Time_s"] = hif_eval_time
     results.append(row)
 
-    _section("8. Supervised baselines (RF, NN, SVM)")
-    for name, clf in build_baselines().items():
+    mode = "Optuna-tuned" if args.optimize else "fixed hyperparameters"
+    _section("8. Supervised baselines (RF, NN, SVM) -- %s" % mode)
+    default_baselines = build_baselines()
+    for name in ["RF", "NN", "SVM"]:
         print("\n  Training %s ..." % name)
         t0 = time.time()
-        clf.fit(X_train_bal, y_train_bal)
+        if args.optimize:
+            from hif.optimize import tune_supervised
+            clf, best_params = tune_supervised(
+                name, X_train_bal, y_train_bal, X_val, y_val, n_trials=args.n_trials)
+            print("    best params: %s" % best_params)
+        else:
+            clf = default_baselines[name]
+            clf.fit(X_train_bal, y_train_bal)
         train_t = time.time() - t0
 
         t0 = time.time()

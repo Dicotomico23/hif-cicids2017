@@ -32,7 +32,13 @@ python reproduce/run_comparison.py  # full study
 ```
 
 `data/download.py` retrieves the dataset and writes the results table and
-figures to `results/`. A quick partial run on a subsample:
+figures to `results/`. Tune the supervised baselines with Optuna (validation F1; test never used):
+
+```
+python reproduce/run_comparison.py --optimize --n_trials 20
+```
+
+A quick partial run on a subsample:
 
 ```
 python reproduce/run_comparison.py --nrows 50000
