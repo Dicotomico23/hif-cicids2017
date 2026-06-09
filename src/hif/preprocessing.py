@@ -82,6 +82,12 @@ def load_dataset(nrows=None, dataset=KAGGLE_DATASET, path=None):
     else:
         import kagglehub
 
+        print("\n" + "!" * 70)
+        print("WARNING: cleaned dataset not found; falling back to RAW Kaggle.")
+        print("The RAW dataset has 78 features (the cleaned export has 52), so")
+        print("results will NOT match the paper. Run 'python data/download.py'")
+        print("first to fetch the canonical cleaned dataset from the Release.")
+        print("!" * 70 + "\n")
         src = kagglehub.dataset_download(dataset)
         print("Dataset path (kagglehub): %s" % src)
 
