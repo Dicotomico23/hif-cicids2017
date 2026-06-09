@@ -12,7 +12,21 @@ preserved in two independent places and fetched by a script.
 
 Both hold the same `cicids2017.zip`, verified by SHA256.
 
-## Getting the data
+## Committed sample (instant testing)
+
+A small, class-stratified sample is committed at
+`data/sample/cicids2017_sample.csv` (about 12k rows, ~4 MB) so the pipeline can
+be run immediately without any download:
+
+```
+python reproduce/run_comparison.py --data data/sample/cicids2017_sample.csv
+```
+
+It was produced from the full dataset with `scripts/make_sample.py` and
+preserves the benign/attack class proportions. Use the full dataset (below) for
+the reported results; use `--fraction` to run the full data on a smaller slice.
+
+## Getting the full data
 
 ```
 python data/download.py

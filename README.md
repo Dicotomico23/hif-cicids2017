@@ -38,6 +38,19 @@ figures to `results/`. Tune the supervised baselines with Optuna (validation F1;
 python reproduce/run_comparison.py --optimize --n_trials 20
 ```
 
+Run instantly on the committed sample (no download needed):
+
+```
+python reproduce/run_comparison.py --data data/sample/cicids2017_sample.csv
+```
+
+Run the full dataset on a smaller, class-balanced slice for faster turnaround
+(stratified, preserves class proportions):
+
+```
+python reproduce/run_comparison.py --fraction 0.25
+```
+
 A quick partial run on a subsample:
 
 ```

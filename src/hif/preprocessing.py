@@ -48,36 +48,45 @@ def _local_data_dir():
     return None
 
 
-def load_dataset(nrows=None, dataset=KAGGLE_DATASET):
+def load_dataset(nrows=None, dataset=KAGGLE_DATASET, path=None):
     """Load CICIDS2017 and return the concatenated DataFrame.
 
-    Prefers the archived local copy in data/cicids2017 (populated by
-    data/download.py). Falls back to downloading via kagglehub if no local
-    copy is present.
+    Source resolution order:
+      1. ``path`` if given (a single CSV file or a directory of CSVs);
+      2. the archived local copy in data/cicids2017 (populated by
+         data/download.py);
+      3. download via kagglehub.
 
     Args:
+        path:  explicit CSV file or directory to read (e.g. the committed
+               sample at data/sample/cicids2017_sample.csv).
         nrows: if set, a random subsample of this many rows is returned. Useful
                for quick smoke runs; leave as None for the full study.
     """
-    local = _local_data_dir()
-    if local is not None:
-        path = local
-        print("Using archived dataset: %s" % path)
+    if path is not None:
+        src = path
+        print("Using dataset path: %s" % src)
+    elif _local_data_dir() is not None:
+        src = _local_data_dir()
+        print("Using archived dataset: %s" % src)
     else:
         import kagglehub
 
-        path = kagglehub.dataset_download(dataset)
-        print("Dataset path (kagglehub): %s" % path)
+        src = kagglehub.dataset_download(dataset)
+        print("Dataset path (kagglehub): %s" % src)
 
-    frames = []
-    for root, _, files in os.walk(path):
-        for name in files:
-            if name.endswith(".csv"):
-                fp = os.path.join(root, name)
-                print("  Loading %s" % fp)
-                frames.append(pd.read_csv(fp, low_memory=False))
-
-    df = pd.concat(frames, ignore_index=True)
+    if os.path.isfile(src):
+        print("  Loading %s" % src)
+        df = pd.read_csv(src, low_memory=False)
+    else:
+        frames = []
+        for root, _, files in os.walk(src):
+            for name in files:
+                if name.endswith(".csv"):
+                    fp = os.path.join(root, name)
+                    print("  Loading %s" % fp)
+                    frames.append(pd.read_csv(fp, low_memory=False))
+        df = pd.concat(frames, ignore_index=True)
     if nrows is not None and nrows < len(df):
         df = df.sample(n=nrows, random_state=RANDOM_STATE).reset_index(drop=True)
     print("Raw shape: %s" % str(df.shape))
@@ -104,6 +113,23 @@ def clean(df):
     print("  BENIGN : %8d  (%.1f%%)" % (counts[0], counts[0] / total * 100))
     print("  ATTACK : %8d  (%.1f%%)" % (counts[1], counts[1] / total * 100))
     return df, numeric_cols
+
+
+def stratified_sample(df, fraction, label_col=LABEL_COL, seed=RANDOM_STATE):
+    """Return a class-proportion-preserving subsample of the cleaned data.
+
+    fraction is in (0, 1]; values >= 1 return the full DataFrame. Lets users
+    run the pipeline on a smaller, representative slice for faster turnaround.
+    """
+    if fraction is None or fraction >= 1.0:
+        return df
+    _, sample = train_test_split(
+        df, test_size=fraction, stratify=df[label_col], random_state=seed
+    )
+    counts = sample[label_col].value_counts()
+    print("Stratified subsample: %.1f%% -> %d rows (BENIGN %d, ATTACK %d)"
+          % (fraction * 100, len(sample), counts.get(0, 0), counts.get(1, 0)))
+    return sample.reset_index(drop=True)
 
 
 def split(df, numeric_cols):

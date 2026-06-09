@@ -71,7 +71,13 @@ def main():
     parser.add_argument("--output", default="results", help="output directory")
     parser.add_argument("--seed", type=int, default=RANDOM_STATE, help="random seed")
     parser.add_argument("--nrows", type=int, default=None,
-                        help="random subsample size for a quick partial run")
+                        help="random raw-row cap before cleaning (quick dev run)")
+    parser.add_argument("--fraction", type=float, default=None,
+                        help="keep a stratified fraction in (0,1] of the cleaned "
+                             "data (preserves class balance; faster runs)")
+    parser.add_argument("--data", default=None,
+                        help="path to a CSV file or directory to use as the "
+                             "dataset (e.g. data/sample/cicids2017_sample.csv)")
     parser.add_argument("--optimize", action="store_true",
                         help="tune the supervised baselines with Optuna")
     parser.add_argument("--n_trials", type=int, default=20,
@@ -83,10 +89,12 @@ def main():
     os.makedirs(fig_dir, exist_ok=True)
 
     _section("1. Load CICIDS2017")
-    df = preprocessing.load_dataset(nrows=args.nrows)
+    df = preprocessing.load_dataset(nrows=args.nrows, path=args.data)
 
     _section("2. Clean and binarize labels (0 = BENIGN, 1 = attack)")
     df, numeric_cols = preprocessing.clean(df)
+    if args.fraction:
+        df = preprocessing.stratified_sample(df, args.fraction)
 
     _section("3. Stratified 70/15/15 split")
     X_train, X_val, X_test, y_train, y_val, y_test = preprocessing.split(df, numeric_cols)
