@@ -1,31 +1,52 @@
 # Data
 
-The CICIDS2017 dataset is not stored in this repository. It is downloaded
-automatically the first time you run the pipeline.
+The CICIDS2017 dataset is not committed to git: it is about 1.1 GB and a single
+CSV exceeds GitHub's 100 MB per-file limit. To keep the experiments
+reproducible even if the original Kaggle link disappears, the dataset is
+preserved in two independent places and fetched by a script.
 
-## How the download works
+## Archived copies (redundant)
 
-`reproduce/run_comparison.py` calls `kagglehub.dataset_download` on the
-dataset `chethuhn/network-intrusion-dataset`, a mirror of the CICIDS2017
-MachineLearning CSV export produced by the Canadian Institute for
-Cybersecurity. kagglehub caches the files under `~/.cache/kagglehub`, so the
-download happens only once.
+1. Zenodo: a permanent, citable archive with a DOI (primary source).
+2. GitHub Release asset: a mirror attached to a release of this repository.
 
-To use kagglehub you need Kaggle credentials. Either:
+Both hold the same `cicids2017.zip`, verified by SHA256.
 
-- log in once with the Kaggle CLI, or
-- place a `kaggle.json` API token in `~/.kaggle/kaggle.json`.
+## Getting the data
 
-See https://www.kaggle.com/docs/api for details.
+```
+python data/download.py
+```
 
-## What the pipeline reads
+This tries Zenodo, then the GitHub Release, then Kaggle (if credentials are
+available), verifies the checksum, and extracts the CSV files into
+`data/cicids2017/`. Once present, `reproduce/run_comparison.py` reads from this
+local copy automatically.
 
-Every `.csv` file in the downloaded folder is concatenated. Each row is one
-network flow described by the CICFlowMeter features plus a ` Label` column
-(the leading space is part of the original column name).
+You can also point it at any mirror:
 
-## Official source
+```
+DATASET_URL=https://example/cicids2017.zip python data/download.py
+```
 
-The original dataset and its documentation are available from the Canadian
-Institute for Cybersecurity:
-https://www.unb.ca/cic/datasets/ids-2017.html
+## Recreating the archive (maintainers)
+
+On a machine with Kaggle credentials (`~/.kaggle/kaggle.json`, or the
+`KAGGLE_USERNAME` and `KAGGLE_KEY` environment variables):
+
+```
+python scripts/package_dataset.py
+```
+
+This downloads the dataset from Kaggle, builds `dist/cicids2017.zip`, and
+prints its SHA256. Upload that zip to Zenodo and to a GitHub Release, then put
+the two URLs and the checksum into `data/download.py`
+(`ZENODO_URL`, `RELEASE_URL`, `EXPECTED_SHA256`).
+
+## Sources
+
+- Kaggle mirror: `chethuhn/network-intrusion-dataset`
+- Official: https://www.unb.ca/cic/datasets/ids-2017.html
+
+Each row is a network flow described by CICFlowMeter features plus a ` Label`
+column (the leading space is part of the original column name).

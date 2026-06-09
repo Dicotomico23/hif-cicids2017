@@ -17,6 +17,8 @@ The pipeline, in order:
 Steps 4 to 7 are deliberately ordered to prevent data leakage into the test set.
 """
 
+import os
+
 import numpy as np
 import pandas as pd
 from imblearn.over_sampling import BorderlineSMOTE
@@ -35,19 +37,37 @@ from .config import (
 )
 
 
+def _local_data_dir():
+    """Return the archived dataset directory (data/cicids2017) if it exists."""
+    here = os.path.dirname(os.path.abspath(__file__))
+    candidate = os.path.abspath(os.path.join(here, "..", "..", "data", "cicids2017"))
+    if os.path.isdir(candidate) and any(
+        n.endswith(".csv") for n in os.listdir(candidate)
+    ):
+        return candidate
+    return None
+
+
 def load_dataset(nrows=None, dataset=KAGGLE_DATASET):
-    """Download CICIDS2017 via kagglehub and return the concatenated DataFrame.
+    """Load CICIDS2017 and return the concatenated DataFrame.
+
+    Prefers the archived local copy in data/cicids2017 (populated by
+    data/download.py). Falls back to downloading via kagglehub if no local
+    copy is present.
 
     Args:
         nrows: if set, a random subsample of this many rows is returned. Useful
                for quick smoke runs; leave as None for the full study.
     """
-    import os
+    local = _local_data_dir()
+    if local is not None:
+        path = local
+        print("Using archived dataset: %s" % path)
+    else:
+        import kagglehub
 
-    import kagglehub
-
-    path = kagglehub.dataset_download(dataset)
-    print("Dataset path: %s" % path)
+        path = kagglehub.dataset_download(dataset)
+        print("Dataset path (kagglehub): %s" % path)
 
     frames = []
     for root, _, files in os.walk(path):

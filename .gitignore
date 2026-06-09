@@ -1,8 +1,12 @@
-# Datasets are downloaded at run time, never committed.
+# Datasets are downloaded at run time, never committed (too large for git).
 data/*
 !data/README.md
+!data/download.py
 *.csv
 *.zip
+
+# Packaged dataset archive (uploaded to Zenodo / GitHub Release, not committed).
+dist/
 
 # Generated results (keep the directory and figures placeholder if you wish).
 results/*.csv
