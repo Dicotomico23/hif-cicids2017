@@ -93,25 +93,49 @@ def load_dataset(nrows=None, dataset=KAGGLE_DATASET, path=None):
     return df
 
 
-def clean(df):
-    """Binarize the label, drop infinities/NaNs, and return (df, numeric_cols)."""
-    df[LABEL_COL] = df[LABEL_COL].apply(
-        lambda x: 0 if str(x).strip() == "BENIGN" else 1
+# Supported (label column, benign-class value) schemes, in priority order.
+# Raw CICIDS2017 CSVs use ' Label' (benign = 'BENIGN'); the cleaned dataset
+# uses 'Attack Type' (benign = 'Normal Traffic').
+LABEL_SCHEMES = [(" Label", "BENIGN"), ("Attack Type", "Normal Traffic")]
+
+
+def detect_label(df):
+    """Return (label_column, benign_value) for whichever scheme the df uses."""
+    for col, benign in LABEL_SCHEMES:
+        if col in df.columns:
+            return col, benign
+    raise ValueError(
+        "No known label column found. Expected one of: %s"
+        % ", ".join(c for c, _ in LABEL_SCHEMES)
     )
 
-    numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
-    if LABEL_COL in numeric_cols:
-        numeric_cols.remove(LABEL_COL)
 
+def clean(df):
+    """Binarize the label, drop infinities/NaNs, and return (df, numeric_cols).
+
+    Works with both the raw CICIDS2017 CSVs and the cleaned dataset; the label
+    column is detected automatically (see LABEL_SCHEMES). The binary label is
+    written to LABEL_COL: 0 = benign, 1 = any attack (anomalous).
+    """
+    src_label, benign = detect_label(df)
+    y = df[src_label].apply(lambda x: 0 if str(x).strip() == benign else 1)
+
+    numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+    for col in (src_label, LABEL_COL):
+        if col in numeric_cols:
+            numeric_cols.remove(col)
+
+    df = df.copy()
     df[numeric_cols] = df[numeric_cols].replace([np.inf, -np.inf], np.nan)
-    df.dropna(inplace=True)
+    df.dropna(subset=numeric_cols, inplace=True)
+    df[LABEL_COL] = y.loc[df.index].values
     df.reset_index(drop=True, inplace=True)
 
     counts = df[LABEL_COL].value_counts()
     total = len(df)
-    print("Shape after cleaning: %s" % str(df.shape))
-    print("  BENIGN : %8d  (%.1f%%)" % (counts[0], counts[0] / total * 100))
-    print("  ATTACK : %8d  (%.1f%%)" % (counts[1], counts[1] / total * 100))
+    print("Shape after cleaning: %s (label column: %s)" % (str(df.shape), src_label))
+    print("  BENIGN : %8d  (%.1f%%)" % (counts.get(0, 0), counts.get(0, 0) / total * 100))
+    print("  ATTACK : %8d  (%.1f%%)" % (counts.get(1, 0), counts.get(1, 0) / total * 100))
     return df, numeric_cols
 
 

@@ -12,10 +12,19 @@ preserved in two independent places and fetched by a script.
 
 Both hold the same `cicids2017.zip`, verified by SHA256.
 
+## Dataset variant
+
+The pipeline uses the cleaned CICIDS2017 export `cicids2017_cleaned.csv`
+(2{,}520{,}751 flows, 52 features plus an `Attack Type` column with grouped
+categories: Normal Traffic, DoS, DDoS, Port Scanning, Brute Force, Web Attacks,
+Bots). The pipeline auto-detects this format (benign = `Normal Traffic`) as well
+as the raw CICIDS2017 CSVs (benign = `BENIGN`); all attacks are collapsed into a
+single anomalous class.
+
 ## Committed sample (instant testing)
 
 A small, class-stratified sample is committed at
-`data/sample/cicids2017_sample.csv` (about 12k rows, ~4 MB) so the pipeline can
+`data/sample/cicids2017_sample.csv` (about 12k rows, ~3 MB) so the pipeline can
 be run immediately without any download:
 
 ```
