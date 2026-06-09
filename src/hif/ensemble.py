@@ -37,6 +37,10 @@ class HIFEnsemble:
         return np.mean([hif.score_samples(X) for hif in self.members], axis=0)
 
     def optimize_threshold(self, X_val, y_val, precision_weight=PRECISION_WEIGHT):
+        # Fix each member's normalization on the validation set so the chosen
+        # threshold transfers correctly to the test set.
+        for hif in self.members:
+            hif.calibrate(X_val)
         scores = self.score_samples(X_val)
         self.threshold = fbeta_threshold(scores, y_val, precision_weight)
         return self.threshold

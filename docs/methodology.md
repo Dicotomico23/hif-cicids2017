@@ -71,9 +71,15 @@ the validation set by maximising an F-beta score, with
 
     beta = sqrt((1 - w) / w),   w = 0.9
 
-The optimisation is a continuous bounded search over the range of validation
-scores. A high w pushes the threshold towards very high precision (few false
-alarms) at the cost of recall, which is the behaviour reported for HIF.
+The search is a grid over the range of validation scores. A grid is used
+rather than a continuous optimiser because the F-beta objective is piecewise
+constant in the threshold, which traps continuous solvers in flat regions. A
+high w pushes the threshold towards very high precision (few false alarms) at
+the cost of recall, which is the behaviour reported for HIF.
+
+The score normalization bounds are fitted on the validation set and reused at
+inference time, so the threshold chosen on validation transfers correctly to
+the test set.
 
 ## Baselines
 

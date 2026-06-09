@@ -24,7 +24,6 @@ import math
 
 import numpy as np
 from joblib import Parallel, delayed
-from scipy.optimize import minimize_scalar
 from sklearn.metrics import precision_score, recall_score
 
 from .config import RANDOM_STATE
@@ -167,6 +166,11 @@ class HybridIsolationForest:
         self.forest = []
         self.alpha1 = 0.5
         self.alpha2 = 0.5
+        # Normalization bounds for (h, dx, ratio), fitted once on a reference
+        # set by calibrate(). Kept fixed afterwards so the threshold chosen on
+        # the validation set transfers correctly to the test set. None means
+        # "normalize per input batch" (used before calibration).
+        self._norm = None
 
     def fit(self, X_normal, X_anomalies=None, y_anomalies=None):
         """Train on benign data, then route labelled anomalies into the trees."""
@@ -208,22 +212,51 @@ class HybridIsolationForest:
         da = np.mean([r[2] for r in results], axis=0)
         return h, dx, da
 
+    def _signals(self, X):
+        """Return the three raw signals (h, dx, ratio) for the samples in X."""
+        h, dx, da = self._raw_scores(X)
+        with np.errstate(divide="ignore", invalid="ignore"):
+            ratio = np.where(da != 0, dx / da, 0.0)
+        return h, dx, ratio
+
+    def calibrate(self, X_ref):
+        """Fit and store the normalization bounds on a reference set.
+
+        Called on the validation set before threshold selection so that the
+        same min/max scaling is applied to the test set at inference time.
+        """
+        h, dx, ratio = self._signals(X_ref)
+        self._norm = (
+            float(h.min()), float(h.max()),
+            float(dx.min()), float(dx.max()),
+            float(ratio.min()), float(ratio.max()),
+        )
+        return self
+
     @staticmethod
-    def _normalize(arr):
-        lo, hi = arr.min(), arr.max()
+    def _scale(arr, lo, hi):
         return (arr - lo) / (hi - lo) if hi > lo else np.zeros_like(arr)
 
     def score_samples(self, X, alpha1=None, alpha2=None):
-        """Return anomaly scores in [0, 1]; higher means more anomalous."""
+        """Return anomaly scores in [0, 1]; higher means more anomalous.
+
+        If calibrate() has been called, the stored normalization bounds are
+        used; otherwise the bounds are taken from this batch.
+        """
         a1 = alpha1 if alpha1 is not None else self.alpha1
         a2 = alpha2 if alpha2 is not None else self.alpha2
 
-        h, dx, da = self._raw_scores(X)
-        s = self._normalize(h)
-        sc = self._normalize(dx)
-        with np.errstate(divide="ignore", invalid="ignore"):
-            ratio = np.where(da != 0, dx / da, 0.0)
-        sa = self._normalize(ratio)
+        h, dx, ratio = self._signals(X)
+        if self._norm is not None:
+            h_lo, h_hi, sc_lo, sc_hi, sa_lo, sa_hi = self._norm
+        else:
+            h_lo, h_hi = h.min(), h.max()
+            sc_lo, sc_hi = dx.min(), dx.max()
+            sa_lo, sa_hi = ratio.min(), ratio.max()
+
+        s = self._scale(h, h_lo, h_hi)
+        sc = self._scale(dx, sc_lo, sc_hi)
+        sa = self._scale(ratio, sa_lo, sa_hi)
 
         return a2 * (a1 * s + (1.0 - a1) * sc) + (1.0 - a2) * sa
 
@@ -231,24 +264,32 @@ class HybridIsolationForest:
         return (self.score_samples(X) > threshold).astype(int)
 
 
-def fbeta_threshold(scores, y_true, precision_weight):
+def fbeta_threshold(scores, y_true, precision_weight, n_grid=200):
     """Select the threshold that maximises a precision-weighted F-beta score.
 
     beta = sqrt((1 - w) / w). With w = 0.9 this puts most of the weight on
     precision, matching the operating point reported in the paper.
+
+    The search is a grid over the range of validation scores (Algorithm 1 in
+    the paper). A grid is used rather than a continuous optimiser because the
+    F-beta objective is piecewise constant in the threshold, which traps
+    continuous solvers in flat regions.
     """
     beta = np.sqrt((1 - precision_weight) / precision_weight)
+    b2 = beta ** 2
 
-    def neg_fbeta(thr):
+    lo, hi = float(scores.min()), float(scores.max())
+    if hi <= lo:
+        return lo
+
+    grid = np.linspace(lo, hi, n_grid)
+    best_thr, best_f = lo, -1.0
+    for thr in grid:
         y_pred = (scores > thr).astype(int)
         p = precision_score(y_true, y_pred, zero_division=0)
         r = recall_score(y_true, y_pred, zero_division=0)
-        denom = beta ** 2 * p + r
-        return -(1 + beta ** 2) * p * r / denom if denom > 0 else 0.0
-
-    result = minimize_scalar(
-        neg_fbeta,
-        bounds=(float(scores.min()), float(scores.max())),
-        method="bounded",
-    )
-    return float(result.x)
+        denom = b2 * p + r
+        f = (1 + b2) * p * r / denom if denom > 0 else 0.0
+        if f > best_f:
+            best_f, best_thr = f, thr
+    return float(best_thr)
