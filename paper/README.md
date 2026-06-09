@@ -3,14 +3,23 @@
 This directory holds the LaTeX source of the paper. The Overleaf project is
 the working copy; commit a snapshot here so the repository is self-contained.
 
-## Files to add here
+## Workflow: originals vs. edited versions
 
-- `main.tex` (the Springer sn-jnl manuscript)
-- `references.bib` (the bibliography actually referenced by `main.tex`)
+Put the untouched files exported from Overleaf in `paper/original/`:
+
+- `paper/original/main.tex`
+- `paper/original/references.bib`
+
+That folder is git-ignored (staging only). The cleaned, corrected versions
+that we edit and align with the code are committed at the top of `paper/`:
+
+- `paper/main.tex`        (edited)
+- `paper/references.bib`  (edited)
 - `sn-jnl.cls` and the `.bst` style file
 - `figures/` (the four figures, copied from `../results/figures/`)
 
-Build with `latexmk -pdf main.tex`.
+So: drop the originals in `paper/original/`, and we produce `paper/main.tex`
+and `paper/references.bib` from them. Build with `latexmk -pdf main.tex`.
 
 ## Pending alignment with the code
 

@@ -32,6 +32,10 @@ venv/
 .idea/
 .vscode/
 
+# Untouched originals from Overleaf (staging only; the edited, cleaned
+# versions are committed as paper/main.tex and paper/references.bib).
+paper/original/
+
 # LaTeX build artifacts
 paper/*.aux
 paper/*.bbl
