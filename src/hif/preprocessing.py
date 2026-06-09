@@ -221,7 +221,7 @@ def scale(X_train, X_val, X_test):
 def balance(X_train, y_train):
     """Oversample the minority (attack) class with Borderline-SMOTE."""
     print("  Before SMOTE: %s" % str(np.bincount(y_train)))
-    smote = BorderlineSMOTE(random_state=RANDOM_STATE, n_jobs=-1)
+    smote = BorderlineSMOTE(random_state=RANDOM_STATE)
     X_bal, y_bal = smote.fit_resample(X_train, y_train)
     print("  After  SMOTE: %s" % str(np.bincount(y_bal)))
     return X_bal, y_bal
