@@ -1,0 +1,19 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "Hybrid Isolation Forest technical comparison using the CICIDS2017 cybersecurity benchmark"
+type: software
+authors:
+  - family-names: "Lopez Facundo"
+    given-names: "Diego"
+  - family-names: "Silva-Trujillo"
+    given-names: "Alejandra G."
+  - family-names: "Cuevas-Tello"
+    given-names: "Juan C."
+version: "1.0.0"
+license: MIT
+repository-code: "https://github.com/Dicotomico23/HIF_NetworkAnomalyDetection"
+abstract: >
+  Reproducible comparison of a Hybrid Isolation Forest (HIF) semi-supervised
+  ensemble against supervised baselines (Random Forest, Multi-Layer Perceptron,
+  Support Vector Machine) and Local Outlier Factor for network anomaly detection
+  on the CICIDS2017 dataset.

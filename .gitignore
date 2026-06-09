@@ -1,0 +1,35 @@
+# Datasets are downloaded at run time, never committed.
+data/*
+!data/README.md
+*.csv
+*.zip
+
+# Generated results (keep the directory and figures placeholder if you wish).
+results/*.csv
+results/*.json
+
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.env
+
+# OS / editors
+.DS_Store
+.idea/
+.vscode/
+
+# LaTeX build artifacts
+paper/*.aux
+paper/*.bbl
+paper/*.blg
+paper/*.log
+paper/*.out
+paper/*.synctex.gz
+paper/*.fls
+paper/*.fdb_latexmk
