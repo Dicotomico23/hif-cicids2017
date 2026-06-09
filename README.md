@@ -52,11 +52,23 @@ python reproduce/run_comparison.py --nrows 50000
 The split happens before scaling, feature selection and oversampling so that
 none of them sees test data. Full details are in `docs/methodology.md`.
 
+## Validation against the original HIF
+
+`reproduce/compare_with_original.py` checks our HIF against Marteau's original
+implementation (https://github.com/pfmarteau/HIF) on the same preprocessed
+data. Marteau's code is GPL-2.0+, so it is fetched at run time into `.external/`
+(git-ignored) and never vendored into this MIT repository.
+
+```
+python reproduce/compare_with_original.py --nrows 50000
+```
+
 ## Repository layout
 
 ```
 src/hif/             HIF implementation, baselines, preprocessing, metrics
-reproduce/           run_comparison.py, the end-to-end entry point
+reproduce/           run_comparison.py (main study) and compare_with_original.py
+scripts/             dataset packaging helper
 tests/               synthetic smoke test
 data/                download instructions (no data is committed)
 results/             generated table and figures

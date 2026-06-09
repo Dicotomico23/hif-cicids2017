@@ -8,6 +8,10 @@ data/*
 # Packaged dataset archive (uploaded to Zenodo / GitHub Release, not committed).
 dist/
 
+# Third-party code fetched at run time (e.g. Marteau's GPL HIF). Not vendored
+# so this MIT repo stays MIT-clean.
+.external/
+
 # Generated results (keep the directory and figures placeholder if you wish).
 results/*.csv
 results/*.json

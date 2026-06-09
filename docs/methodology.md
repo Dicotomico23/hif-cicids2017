@@ -55,7 +55,13 @@ store an anomaly centroid. Using labelled anomalies in this way is what makes
 the model semi-supervised rather than a plain Isolation Forest.
 
 The implementation follows the Hybrid Isolation Forest formulation by
-Pierre-Francois Marteau.
+Pierre-Francois Marteau (https://github.com/pfmarteau/HIF). It was validated
+against that reference: `reproduce/compare_with_original.py` runs both
+implementations on the same preprocessed split and compares the ROC AUC of the
+three signals and of the combined score. After alignment the two agree closely
+(combined ROC AUC differs only by tree-construction randomness). Note that
+Marteau's code is GPL-2.0+; it is fetched at run time and never vendored into
+this MIT repository.
 
 ## The ensemble
 
