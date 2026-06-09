@@ -36,3 +36,15 @@ matches the code in this repository (the code is the source of truth):
 - Fix the broken cross-reference to the results comparison subsection.
 - Fill the missing F1 and ROC AUC cells in the baseline row of the results
   table (or mark them as not reported).
+
+## Validation against the original HIF (reproducibility subsection)
+
+Our HIF was validated against Marteau's original implementation
+(https://github.com/pfmarteau/HIF, GPL-2.0+). This belongs in a short
+reproducibility/validation subsection, NOT as a model in the main results
+table. Add a small table comparing the per-signal and combined ROC AUC of our
+HIF versus the original on the same preprocessed split (produced by
+reproduce/compare_with_original.py), and one sentence stating that the two
+agree within tree-construction randomness. Cite Marteau's HIF (arXiv:1705.03800)
+for the algorithm and note that the original code is GPL and only used for
+validation, not redistributed.
