@@ -35,7 +35,26 @@ It was produced from the full dataset with `scripts/make_sample.py` and
 preserves the benign/attack class proportions. Use the full dataset (below) for
 the reported results; use `--fraction` to run the full data on a smaller slice.
 
-## Getting the full data
+## Download the dataset directly (no script)
+
+The full cleaned dataset is published as a single GitHub Release asset. You can
+download it with a browser or any tool, no Python and no Kaggle account needed:
+
+https://github.com/Dicotomico23/hif-cicids2017/releases/download/dataset-v1/cicids2017_cleaned.zip
+
+The archive contains one file, `cicids2017_cleaned.csv`. Unzip it into this
+`data/` directory and the pipeline reads it automatically:
+
+```
+curl -L -o cicids2017_cleaned.zip \
+  https://github.com/Dicotomico23/hif-cicids2017/releases/download/dataset-v1/cicids2017_cleaned.zip
+unzip cicids2017_cleaned.zip -d data/
+```
+
+SHA256 of the zip:
+`87ee289cd822407c06181cd04048de1f07f84d3f4912493b8a81ea610cea20d9`
+
+## Getting the full data (script, with checksum check)
 
 ```
 python data/download.py

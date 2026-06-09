@@ -31,8 +31,19 @@ python data/download.py             # fetch the archived dataset
 python reproduce/run_comparison.py  # full study
 ```
 
-`data/download.py` retrieves the dataset and writes the results table and
-figures to `results/`. Tune the supervised baselines with Optuna (validation F1; test never used):
+Prefer a direct download? The full cleaned dataset is a single GitHub Release
+asset. Download and unzip it into `data/` (no script, no Kaggle account):
+
+```
+curl -L -o cicids2017_cleaned.zip \
+  https://github.com/Dicotomico23/hif-cicids2017/releases/download/dataset-v1/cicids2017_cleaned.zip
+unzip cicids2017_cleaned.zip -d data/
+```
+
+This leaves `data/cicids2017_cleaned.csv`, which the pipeline reads
+automatically. `data/download.py` does the same plus a SHA256 integrity check.
+
+Tune the supervised baselines with Optuna (validation F1; test never used):
 
 ```
 python reproduce/run_comparison.py --optimize --n_trials 20
