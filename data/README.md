@@ -41,15 +41,16 @@ the reported results; use `--fraction` to run the full data on a smaller slice.
 python data/download.py
 ```
 
-This tries Zenodo, then the GitHub Release, then Kaggle (if credentials are
-available), verifies the checksum, and extracts the CSV files into
-`data/cicids2017/`. Once present, `reproduce/run_comparison.py` reads from this
-local copy automatically.
+This downloads the cleaned dataset from the GitHub Release
+(`dataset-v1`, asset `cicids2017_cleaned.zip`, ~196 MB), verifies its SHA256
+checksum, and extracts it to `data/cicids2017_cleaned.csv`. No Kaggle account is
+needed. Once present, `reproduce/run_comparison.py` reads it automatically.
 
-You can also point it at any mirror:
+You can also point it at any mirror, or fall back to the raw Kaggle dataset:
 
 ```
-DATASET_URL=https://example/cicids2017.zip python data/download.py
+DATASET_URL=https://example/cicids2017_cleaned.zip python data/download.py
+ALLOW_KAGGLE=1 python data/download.py    # raw dataset via kagglehub
 ```
 
 ## Recreating the archive (maintainers)

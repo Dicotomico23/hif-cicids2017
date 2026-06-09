@@ -1,18 +1,20 @@
-"""Download and verify the archived CICIDS2017 dataset.
+"""Download and verify the cleaned CICIDS2017 dataset.
 
-The dataset is preserved in two places so the experiments remain reproducible
-even if the original Kaggle link disappears:
+The cleaned dataset (a single CSV: 2,520,751 flows, 52 features plus an
+`Attack Type` column) is hosted as a zipped asset so the experiments stay
+reproducible. This script downloads it, verifies the SHA256 checksum, and
+extracts it to data/cicids2017_cleaned.csv, which the pipeline reads
+automatically.
 
-  1. Zenodo  (permanent, citable DOI)        -- primary source
-  2. GitHub Release asset                     -- mirror
-
-This script tries the sources in order, verifies the SHA256 checksum, and
-extracts the CSV files into data/cicids2017/. If both archives are unreachable
-and kagglehub is installed with valid credentials, it falls back to Kaggle.
+Sources are tried in order:
+  1. a GitHub Release asset (primary)
+  2. Zenodo (optional mirror, once configured)
+  3. Kaggle (opt-in fallback for the raw dataset; needs credentials)
 
 Usage:
     python data/download.py
-    DATASET_URL=https://example/cicids2017.zip python data/download.py
+    DATASET_URL=https://example/cicids2017_cleaned.zip python data/download.py
+    ALLOW_KAGGLE=1 python data/download.py    # raw-dataset fallback
 """
 
 import hashlib
@@ -21,20 +23,19 @@ import sys
 import urllib.request
 import zipfile
 
-# Filled in after running scripts/package_dataset.py and uploading the archive.
-ZENODO_URL = ""   # e.g. https://zenodo.org/records/<id>/files/cicids2017.zip
-RELEASE_URL = ""  # e.g. https://github.com/<owner>/<repo>/releases/download/<tag>/cicids2017.zip
-EXPECTED_SHA256 = ""  # paste the checksum printed by package_dataset.py
+RELEASE_URL = ("https://github.com/Dicotomico23/hif-cicids2017/releases/"
+               "download/dataset-v1/cicids2017_cleaned.zip")
+ZENODO_URL = ""  # optional mirror: https://zenodo.org/records/<id>/files/cicids2017_cleaned.zip
+EXPECTED_SHA256 = "87ee289cd822407c06181cd04048de1f07f84d3f4912493b8a81ea610cea20d9"
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
-TARGET_DIR = os.path.join(_HERE, "cicids2017")
-ZIP_PATH = os.path.join(_HERE, "cicids2017.zip")
+OUT_CSV = os.path.join(_HERE, "cicids2017_cleaned.csv")
+ZIP_PATH = os.path.join(_HERE, "cicids2017_cleaned.zip")
+RAW_DIR = os.path.join(_HERE, "cicids2017")  # raw kaggle fallback target
 
 
 def _already_present():
-    return os.path.isdir(TARGET_DIR) and any(
-        n.endswith(".csv") for n in os.listdir(TARGET_DIR)
-    )
+    return os.path.isfile(OUT_CSV)
 
 
 def _sha256(path, chunk=1 << 20):
@@ -71,15 +72,16 @@ def _verify(path):
     print("  checksum OK")
 
 
-def _extract(path):
-    print("  extracting into %s" % TARGET_DIR)
-    os.makedirs(TARGET_DIR, exist_ok=True)
-    with zipfile.ZipFile(path) as zf:
-        for member in zf.namelist():
-            if member.endswith(".csv"):
-                data = zf.read(member)
-                with open(os.path.join(TARGET_DIR, os.path.basename(member)), "wb") as fh:
-                    fh.write(data)
+def _extract_cleaned(zip_path):
+    print("  extracting cleaned CSV to %s" % OUT_CSV)
+    with zipfile.ZipFile(zip_path) as zf:
+        member = next(n for n in zf.namelist() if n.endswith(".csv"))
+        with zf.open(member) as src, open(OUT_CSV, "wb") as dst:
+            dst.write(src.read())
+
+
+def _kaggle_allowed():
+    return bool(os.environ.get("ALLOW_KAGGLE")) or ("--kaggle" in sys.argv)
 
 
 def _from_kagglehub():
@@ -92,57 +94,43 @@ def _from_kagglehub():
 
     print("  falling back to kagglehub (%s)" % KAGGLE_DATASET)
     path = kagglehub.dataset_download(KAGGLE_DATASET)
-    os.makedirs(TARGET_DIR, exist_ok=True)
+    os.makedirs(RAW_DIR, exist_ok=True)
     for root, _, files in os.walk(path):
         for name in files:
             if name.endswith(".csv"):
-                shutil.copy2(os.path.join(root, name),
-                             os.path.join(TARGET_DIR, name))
-
-
-def _kaggle_allowed():
-    """Kaggle is an opt-in emergency fallback, never used automatically."""
-    return bool(os.environ.get("ALLOW_KAGGLE")) or ("--kaggle" in sys.argv)
+                shutil.copy2(os.path.join(root, name), os.path.join(RAW_DIR, name))
 
 
 def main():
     if _already_present():
-        print("Dataset already present in %s" % TARGET_DIR)
+        print("Dataset already present: %s" % OUT_CSV)
         return
 
-    sources = [u for u in (os.environ.get("DATASET_URL"), ZENODO_URL, RELEASE_URL) if u]
-
+    sources = [u for u in (os.environ.get("DATASET_URL"), RELEASE_URL, ZENODO_URL) if u]
     for url in sources:
         try:
             _download(url, ZIP_PATH)
             _verify(ZIP_PATH)
-            _extract(ZIP_PATH)
+            _extract_cleaned(ZIP_PATH)
             os.remove(ZIP_PATH)
             print("Done.")
             return
         except Exception as exc:  # noqa: BLE001
             print("  failed: %s" % exc)
 
-    if not sources:
-        print("No archive URLs configured (set ZENODO_URL / RELEASE_URL).")
-
     if not _kaggle_allowed():
         raise SystemExit(
-            "Dataset not available from the archive. Either configure "
-            "ZENODO_URL / RELEASE_URL in data/download.py, or, as an emergency, "
-            "re-run with the Kaggle fallback enabled: "
-            "ALLOW_KAGGLE=1 python data/download.py"
+            "Could not download the cleaned dataset from the configured sources. "
+            "Re-run with ALLOW_KAGGLE=1 to fetch the raw dataset from Kaggle "
+            "instead, or set DATASET_URL to a reachable mirror."
         )
 
-    print("Emergency fallback: trying Kaggle ...")
+    print("Emergency fallback: fetching the raw dataset from Kaggle ...")
     try:
         _from_kagglehub()
         print("Done.")
     except Exception as exc:  # noqa: BLE001
-        raise SystemExit(
-            "Kaggle fallback failed. Configure Kaggle credentials "
-            "(upload kaggle.json) or set the archive URLs. Details: %s" % exc
-        )
+        raise SystemExit("Kaggle fallback failed: %s" % exc)
 
 
 if __name__ == "__main__":

@@ -48,6 +48,13 @@ def _local_data_dir():
     return None
 
 
+def _cleaned_file():
+    """Return the cleaned single-file dataset path (data/cicids2017_cleaned.csv)."""
+    here = os.path.dirname(os.path.abspath(__file__))
+    f = os.path.abspath(os.path.join(here, "..", "..", "data", "cicids2017_cleaned.csv"))
+    return f if os.path.isfile(f) else None
+
+
 def load_dataset(nrows=None, dataset=KAGGLE_DATASET, path=None):
     """Load CICIDS2017 and return the concatenated DataFrame.
 
@@ -66,6 +73,9 @@ def load_dataset(nrows=None, dataset=KAGGLE_DATASET, path=None):
     if path is not None:
         src = path
         print("Using dataset path: %s" % src)
+    elif _cleaned_file() is not None:
+        src = _cleaned_file()
+        print("Using cleaned dataset: %s" % src)
     elif _local_data_dir() is not None:
         src = _local_data_dir()
         print("Using archived dataset: %s" % src)
